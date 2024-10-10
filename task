@@ -1,0 +1,73 @@
+--ЗАДАЧА (1)
+
+WITH hh AS (
+    SELECT
+        di.deal_id,
+        COUNT(c.dt) * 24 AS holiday_hours
+    FROM (
+        SELECT
+            deal_id,
+            MIN(created_at) FILTER (WHERE status_id = 1) AS start_time,
+            MAX(created_at) AS end_time
+        FROM deal_status_log
+        GROUP BY deal_id
+    ) di
+    JOIN calendar c ON c.dt BETWEEN di.start_time::date AND di.end_time::date
+    WHERE c.type = 'hol'
+    GROUP BY di.deal_id
+),
+total_h AS (
+    SELECT
+        t.deal_id,
+        EXTRACT(EPOCH FROM (t.deal_end - t.deal_start)) / 3600 AS time_w_hol
+    FROM (
+        SELECT
+            ds.deal_id,
+            MIN(ds.created_at) FILTER (WHERE ds.status_id = 1) AS deal_start,
+            MAX(ds.created_at) AS deal_end
+        FROM deal_status_log ds
+        GROUP BY ds.deal_id
+    ) AS t
+)
+
+SELECT 
+    t.deal_id,
+    ROUND(t.time_w_hol - COALESCE(hh.holiday_hours, 0), 2) AS deal_time
+FROM total_h t
+LEFT JOIN hh ON t.deal_id = hh.deal_id;
+
+
+
+--------
+
+--ЗАДАЧА(2)
+
+
+SELECT
+    sd.status_id,
+    ROUND(AVG(EXTRACT(EPOCH FROM (sd.end_time - sd.start_time)) / 3600 - COALESCE(sd.holiday_hours, 0)), 2) AS avg_time_on_status,
+    AVG(st.s_counter) as status_counter
+FROM
+    (SELECT
+        si.deal_id,
+        si.status_id,
+        (COUNT(c.dt) filter (where c.type = 'hol')) * 24 AS holiday_hours,
+        si.start_time,
+        si.end_time
+    FROM (SELECT
+	        ds.deal_id,
+	        ds.status_id,
+	        ds.created_at AS start_time,
+	        LEAD(ds.created_at) OVER (PARTITION BY ds.deal_id ORDER BY ds.created_at) AS end_time
+	      FROM deal_status_log ds) si
+    LEFT JOIN calendar c ON c.dt BETWEEN si.start_time::date AND si.end_time::date
+    WHERE si.end_time IS NOT NULL
+    GROUP BY si.deal_id, si.status_id, si.start_time, si.end_time
+	) sd
+join (select
+		status_id,
+		count(status_id) as s_counter
+	  from deal_status_log
+	  group by 1) st on sd.status_id = st.status_id
+GROUP BY sd.status_id
+ORDER BY sd.status_id;
