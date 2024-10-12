@@ -102,8 +102,7 @@ with deal as (
 	(52232831, '2023-01-13', 293815),
 	(52220239, '2023-01-24', 244415),
 	(36053538, '2023-01-05', 247136),
-	(52255619, '2023-01-13', 252736),
-	(52255619,'13.01.2023',252736) 
+	(52255619, '2023-01-13', 252736)
 	) as a (deal_id,dt_deal,partner_id)
 ),
 partner as (
@@ -220,8 +219,8 @@ select
 	date_trunc('month',dt_deal)::date mth,
 	date_trunc('quarter',dt_deal)::date qrt,
 	holding,
-	count(deal_id)
+	count(distinct deal_id) --добавил distinct, тк сделки дублировались (партнеры меняли офис)
 from deal d
 left join partner p on p.partner_id=d.partner_id
 group by 
-	groupping sets ((1, 5), (2, 5), (3, 5), (4, 5))
+	grouping sets ((1, 5), (2, 5), (3, 5), (4, 5))
