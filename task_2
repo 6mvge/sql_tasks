@@ -219,8 +219,8 @@ select
 	date_trunc('month',dt_deal)::date mth,
 	date_trunc('quarter',dt_deal)::date qrt,
 	holding,
-	count(distinct deal_id) --добавил distinct, тк сделки дублировались (партнеры меняли офис)
+	count(deal_id)
 from deal d
-left join partner p on p.partner_id=d.partner_id
+left join (SELECT DISTINCT partner_id, holding FROM partner) p on p.partner_id = d.partner_id
 group by 
 	grouping sets ((1, 5), (2, 5), (3, 5), (4, 5))
