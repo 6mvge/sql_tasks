@@ -213,14 +213,28 @@ partner as (
 ------------
 
 
-select 
-	dt_deal::date as dt,
-	date_trunc('week',dt_deal)::date wk,
-	date_trunc('month',dt_deal)::date mth,
-	date_trunc('quarter',dt_deal)::date qrt,
-	holding,
-	count(deal_id)
-from deal d
-left join (SELECT DISTINCT partner_id, holding FROM partner) p on p.partner_id = d.partner_id
-group by 
-	grouping sets ((1, 5), (2, 5), (3, 5), (4, 5))
+SELECT 
+    CASE 
+        WHEN (GROUPING(dt_deal::date) = 0) THEN dt_deal::date 
+        WHEN (GROUPING(date_trunc('week', dt_deal)::date) = 0) THEN date_trunc('week', dt_deal)::date
+        WHEN (GROUPING(date_trunc('month', dt_deal)::date) = 0) THEN date_trunc('month', dt_deal)::date
+        WHEN (GROUPING(date_trunc('quarter', dt_deal)::date) = 0) THEN date_trunc('quarter', dt_deal)::date
+    END AS dt,
+    CASE 
+        WHEN (GROUPING(dt_deal::date) = 0) THEN 'day'
+        WHEN (GROUPING(date_trunc('week', dt_deal)::date) = 0) THEN 'week'
+        WHEN (GROUPING(date_trunc('month', dt_deal)::date) = 0) THEN 'month'
+        WHEN (GROUPING(date_trunc('quarter', dt_deal)::date) = 0) THEN 'quarter'
+    END AS period,
+    holding,
+    COUNT(deal_id)
+FROM deal d
+LEFT JOIN (SELECT DISTINCT partner_id, holding FROM partner) p ON p.partner_id = d.partner_id
+GROUP BY 
+    GROUPING SETS (
+        (dt_deal::date, holding),
+        (date_trunc('week', dt_deal)::date, holding),
+        (date_trunc('month', dt_deal)::date, holding),
+        (date_trunc('quarter', dt_deal)::date, holding)
+    )
+ORDER BY dt, period, holding;
